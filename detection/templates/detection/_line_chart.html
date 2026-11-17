@@ -1,0 +1,35 @@
+<svg viewBox="0 0 {{ width }} {{ height }}" class="line-chart" role="img"
+     preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  {% for g in grid %}
+  <line x1="{{ pad_l }}" y1="{{ g.y }}" x2="{{ width|add:-16 }}" y2="{{ g.y }}"
+        class="grid-line" />
+  <text x="{{ pad_l|add:-6 }}" y="{{ g.y|add:4 }}" class="axis-label" text-anchor="end">{{ g.label }}</text>
+  {% endfor %}
+
+  {% if threshold_line %}
+  <line x1="{{ pad_l }}" y1="{{ threshold_line.y }}"
+        x2="{{ width|add:-16 }}" y2="{{ threshold_line.y }}" class="threshold-line" />
+  <text x="{{ width|add:-20 }}" y="{{ threshold_line.y|add:-5 }}" class="threshold-label"
+        text-anchor="end">{{ threshold_line.label }}</text>
+  {% endif %}
+
+  {% for s in series %}
+  <polyline points="{{ s.points }}" fill="none" stroke="{{ s.color }}"
+            stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  {% endfor %}
+
+  {% for xl in x_labels %}
+  <text x="{{ xl.x }}" y="{{ height|add:-10 }}" class="axis-label" text-anchor="middle">{{ xl.label }}</text>
+  {% endfor %}
+
+  {% for s in series %}
+  <rect x="{{ pad_l|add:forloop.counter0|add:forloop.counter0 }}" y="2" width="10" height="3" fill="{{ s.color }}" />
+  {% endfor %}
+</svg>
+{% if series|length > 1 %}
+<div class="chart-legend">
+  {% for s in series %}
+  <span class="legend-item"><i style="background:{{ s.color }}"></i>{{ s.name }}</span>
+  {% endfor %}
+</div>
+{% endif %}

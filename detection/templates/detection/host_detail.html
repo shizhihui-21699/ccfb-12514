@@ -1,0 +1,134 @@
+{% extends "detection/base.html" %}
+{% load charts %}
+{% block title %}{{ host.name }} · MineWatch{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ host.name }}
+      <span class="badge badge-{{ host.status }}">{{ host.get_status_display }}</span>
+    </h1>
+    <div class="page-desc">{{ host.role }} · {{ host.cloud }} · {{ host.instance_type }}</div>
+  </div>
+  <a href="{% url 'detection:host_list' %}" class="btn">← 返回主机列表</a>
+</div>
+
+<div class="card">
+  <div class="card-title">主机信息</div>
+  <dl class="meta-list">
+    <dt>集群 / 分组</dt><dd>{{ host.cluster|default:"-" }}</dd>
+    <dt>内网 IP</dt><dd class="mono">{{ host.ip_internal }}</dd>
+    <dt>外网 IP</dt><dd class="mono">{{ host.ip_external|default:"-" }}</dd>
+    <dt>日费用基线</dt><dd>¥{{ host.daily_cost_baseline|floatformat:2 }} / 天</dd>
+  </dl>
+</div>
+
+{% if signals %}
+<div class="card">
+  <div class="card-title">当前活动信号（{{ signals|length }}）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>规则</th><th>严重度</th><th>标题</th><th>最近发现</th><th>关联事件</th></tr></thead>
+      <tbody>
+      {% for s in signals %}
+        <tr>
+          <td><span class="tag">{{ s.get_rule_display }}</span></td>
+          <td><span class="badge badge-{{ s.severity }}">{{ s.get_severity_display }}</span></td>
+          <td>{{ s.title }}</td>
+          <td class="dim">{{ s.last_seen|date:"m-d H:i" }}</td>
+          <td>
+            {% if s.incident %}
+              <a href="{% url 'detection:incident_detail' s.incident.pk %}">{{ s.incident.title|truncatechars:28 }}</a>
+            {% else %}<span class="dim">待研判，未自动开事件</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">CPU 使用率曲线（近 48 小时）</div>
+    {% line_chart cpu_labels series=cpu_series threshold=cpu_threshold y_unit="%" %}
+  </div>
+  <div class="card">
+    <div class="card-title">出向流量曲线（kbps）</div>
+    {% line_chart cpu_labels series=out_series y_unit="" %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    进程列表快照
+    <span class="dim" style="font-weight:400;font-size:12px">
+      快照时间：{{ latest_snapshot.timestamp|date:"Y-m-d H:i" }}
+    </span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>PID</th><th>进程名</th><th>可执行路径</th><th>CPU%</th><th>MEM%</th><th>命令行</th></tr></thead>
+      <tbody>
+      {% for p in processes %}
+        <tr>
+          <td class="mono">{{ p.pid }}</td>
+          <td class="mono"><strong>{{ p.name }}</strong></td>
+          <td class="mono dim">{{ p.exe_path|truncatechars:42 }}</td>
+          <td>{% if p.cpu_percent >= 50 %}<span class="badge badge-critical">{{ p.cpu_percent }}</span>{% else %}{{ p.cpu_percent }}{% endif %}</td>
+          <td>{{ p.mem_percent }}</td>
+          <td class="mono dim code-cmd" style="max-width:380px">{{ p.cmdline|truncatechars:160 }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">出站连接（近 48 小时，最近 30 条）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>时间</th><th>远端</th><th>域名</th><th>协议</th><th>发起进程</th><th>发送/接收字节</th></tr></thead>
+      <tbody>
+      {% for c in connections %}
+        <tr>
+          <td class="dim">{{ c.timestamp|date:"m-d H:i" }}</td>
+          <td class="mono">{{ c.remote_ip }}:{{ c.remote_port }}</td>
+          <td class="dim">{{ c.remote_hostname|default:"-" }}</td>
+          <td>{{ c.protocol }}</td>
+          <td class="mono">{{ c.process_name|default:"-" }}</td>
+          <td class="dim mono">{{ c.bytes_sent|filesizeformat }} / {{ c.bytes_recv|filesizeformat }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="dim">窗口内无连接记录</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">计费明细（近 20 天）与基线对比</div>
+  {% line_chart bill_labels series=bill_series threshold=bill_threshold y_unit="" %}
+  <div class="table-wrap" style="margin-top:12px">
+    <table>
+      <thead><tr><th>日期</th><th>当日费用</th><th>基线</th><th>倍数</th><th>备注</th></tr></thead>
+      <tbody>
+      {% for b in billing %}
+        <tr>
+          <td>{{ b.date|date:"Y-m-d" }}</td>
+          <td>¥{{ b.cost|floatformat:2 }}</td>
+          <td class="dim">¥{{ baseline|floatformat:2 }}</td>
+          <td>
+            {% if b.ratio >= 2.5 %}<span class="badge badge-critical">{{ b.ratio }}x</span>
+            {% else %}{{ b.ratio }}x{% endif %}
+          </td>
+          <td class="dim">{{ b.note|default:"-" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

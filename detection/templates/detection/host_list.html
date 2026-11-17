@@ -1,0 +1,36 @@
+{% extends "detection/base.html" %}
+{% block title %}主机资产 · MineWatch{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">主机资产</h1>
+    <div class="page-desc">共 {{ hosts|length }} 台主机，状态由检测引擎依据活动信号自动回写</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+      <tr><th>主机名</th><th>集群</th><th>角色</th><th>云/区域</th><th>规格</th><th>内网 IP</th><th>日费用基线</th><th>活动信号</th><th>状态</th></tr>
+      </thead>
+      <tbody>
+      {% for h in hosts %}
+        <tr>
+          <td><a href="{% url 'detection:host_detail' h.pk %}"><strong>{{ h.name }}</strong></a></td>
+          <td>{{ h.cluster|default:"-" }}</td>
+          <td class="dim">{{ h.role }}</td>
+          <td class="dim">{{ h.cloud }}</td>
+          <td class="mono dim">{{ h.instance_type }}</td>
+          <td class="mono">{{ h.ip_internal }}</td>
+          <td>¥{{ h.daily_cost_baseline|floatformat:2 }}</td>
+          <td>{% if h.signal_count %}<span class="badge badge-high">{{ h.signal_count }}</span>{% else %}<span class="dim">0</span>{% endif %}</td>
+          <td><span class="badge badge-{{ h.status }}">{{ h.get_status_display }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

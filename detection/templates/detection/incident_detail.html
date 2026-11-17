@@ -1,0 +1,113 @@
+{% extends "detection/base.html" %}
+{% block title %}{{ incident.title }} · MineWatch{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ incident.title }}</h1>
+    <div class="page-desc">{{ incident.summary }}</div>
+  </div>
+  <form method="post" class="status-form">
+    {% csrf_token %}
+    <select name="status">
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if incident.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">更新状态</button>
+  </form>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-label">严重度</div>
+    <div class="kpi-value"><span class="badge badge-{{ incident.severity }}">{{ incident.get_severity_display }}</span></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">风险评分</div>
+    <div class="kpi-value {% if incident.score >= 80 %}danger{% else %}warn{% endif %}">{{ incident.score }}<span class="kpi-hint" style="display:inline"> / 100</span></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">开始时间</div>
+    <div class="kpi-value" style="font-size:20px">{{ incident.started_at|date:"m-d H:i" }}</div>
+    <div class="kpi-hint">{{ incident.started_at|date:"Y年" }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">最近活动</div>
+    <div class="kpi-value" style="font-size:20px">{{ incident.last_seen|date:"m-d H:i" }}</div>
+    <div class="kpi-hint"><span class="badge badge-{{ incident.status }}">{{ incident.get_status_display }}</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">涉及主机（{{ hosts|length }} 台）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>主机</th><th>集群</th><th>角色</th><th>内网 IP</th><th>状态</th><th>主机详情</th></tr></thead>
+      <tbody>
+      {% for h in hosts %}
+        <tr>
+          <td><strong>{{ h.name }}</strong></td>
+          <td>{{ h.cluster|default:"-" }}</td>
+          <td class="dim">{{ h.role }}</td>
+          <td class="mono">{{ h.ip_internal }}</td>
+          <td><span class="badge badge-{{ h.status }}">{{ h.get_status_display }}</span></td>
+          <td><a href="{% url 'detection:host_detail' h.pk %}">查看取证 →</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">命中信号（{{ signals|length }} 条）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>规则</th><th>严重度</th><th>信号</th><th>主机</th><th>首次发现</th><th>最近发现</th></tr></thead>
+      <tbody>
+      {% for s in signals %}
+        <tr>
+          <td><span class="tag">{{ s.get_rule_display }}</span></td>
+          <td><span class="badge badge-{{ s.severity }}">{{ s.get_severity_display }}</span></td>
+          <td>{{ s.title }}<div class="dim" style="margin-top:3px">{{ s.detail }}</div></td>
+          <td>{{ s.host.name }}</td>
+          <td class="dim">{{ s.first_seen|date:"m-d H:i" }}</td>
+          <td class="dim">{{ s.last_seen|date:"m-d H:i" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">证据链时间线</div>
+  {% for stage in stages %}
+    <div class="section-label">{{ stage.label }}（{{ stage.items|length }}）</div>
+    <div class="timeline">
+      {% for e in stage.items %}
+        <div class="tl-item stage-{{ e.stage }}">
+          <div class="tl-time">{{ e.timestamp|date:"Y-m-d H:i" }} · {{ e.host.name|default:"-" }}</div>
+          <div class="tl-title">{{ e.title }}</div>
+          <div class="tl-detail">{{ e.detail }}</div>
+          <div class="tl-data">
+            <pre>{{ e.data.evidence|default:e.data|pprint }}</pre>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-title">研判建议</div>
+  <ol style="margin:0; padding-left:20px; line-height:2">
+    <li>隔离涉事主机安全组，仅保留跳板机访问，切断矿池出站连接。</li>
+    <li>保留 <span class="mono">/tmp</span>、<span class="mono">/dev/shm</span> 下的挖矿程序样本与 crontab、systemd 持久化项用于溯源。</li>
+    <li>按证据链中的钱包地址与矿池 IOC 在内网全量检索横向移动范围。</li>
+    <li>轮换该主机及其可访问服务的全部凭据，核查云账号 AccessKey 是否泄露。</li>
+    <li>闭环后重跑检测确认信号消失，事件标记为「已闭环」。</li>
+  </ol>
+</div>
+{% endblock %}

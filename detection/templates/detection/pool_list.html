@@ -1,0 +1,44 @@
+{% extends "detection/base.html" %}
+{% block title %}矿池 IOC 清单 · MineWatch{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">矿池 IOC 清单</h1>
+    <div class="page-desc">
+      出站连接与该清单自动比对；真实条目取自公开安全报告中的主流矿池域名，
+      合成条目（RFC 5737 保留地址）仅供演示命中，可在后台增删
+    </div>
+  </div>
+  <a href="/admin/detection/miningpool/" class="btn btn-primary">后台维护 IOC</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+      <tr><th>矿池</th><th>币种</th><th>类型</th><th>IOC 值</th><th>典型端口</th><th>来源</th><th>状态</th></tr>
+      </thead>
+      <tbody>
+      {% for p in pools %}
+        <tr>
+          <td><strong>{{ p.name }}</strong></td>
+          <td><span class="badge pill-coin">{{ p.coin|default:"-" }}</span></td>
+          <td>{{ p.get_ioc_type_display }}</td>
+          <td class="mono">{{ p.value }}</td>
+          <td class="mono dim">{{ p.port_hint }}</td>
+          <td>
+            {% if p.is_synthetic %}
+              <span class="badge badge-medium">演示合成地址</span>
+            {% else %}
+              <span class="tag">公开 IOC</span>
+            {% endif %}
+          </td>
+          <td>{% if p.enabled %}<span class="badge badge-normal">启用</span>{% else %}<span class="badge badge-false_positive">停用</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
